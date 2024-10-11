@@ -1,0 +1,60 @@
+name: Dev CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.ASSUME_ROLE_ARN_GITHUB_ACTIONS }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: "3.x"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.7"
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Terraform Plan
+        run: task tfp
+
+  terraform-apply:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.ASSUME_ROLE_ARN_GITHUB_ACTIONS }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: "3.x"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.7"
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}      
+      - name: Terraform Apply
+        run: task tfa

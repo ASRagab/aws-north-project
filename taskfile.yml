@@ -1,0 +1,47 @@
+version: '3'
+
+tasks:
+  terraform-fmt:
+    aliases:
+      - tf-fmt
+      - tff
+    desc: Run Terraform fmt
+    dir: terraform
+    cmds:
+      - terraform fmt -recursive
+
+  terraform-validate:
+    aliases:
+      - tf-validate
+      - tfv
+    desc: Run Terraform validate
+    dir: terraform
+    cmds:
+      - terraform validate
+
+  terraform-apply:
+    aliases:
+      - tf-apply
+      - tfa
+    desc: Run Terraform apply
+    dir: terraform
+    cmds:
+      - terraform init && terraform apply -auto-approve
+
+  terraform-destroy:
+    aliases:
+      - tf-destroy
+      - tfd
+    desc: Run Terraform destroy
+    dir: terraform
+    cmds:
+      - terraform destroy -auto-approve
+
+  terraform-plan:
+    aliases:
+      - tf-plan
+      - tfp
+    desc: Run Terraform plan
+    dir: terraform
+    cmds:
+      - terraform init && terraform plan
