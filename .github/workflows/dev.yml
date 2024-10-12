@@ -13,6 +13,33 @@ permissions:
   contents: read
 
 jobs:
+  build-and-test-lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: "3.x"
+      - name: Install Dependencies
+        working-directory: terraform/modules/lambda/msk-lambda-producer
+        run: npm ci --quiet
+      - name: Build and Package Lambda
+        working-directory: terraform/modules/lambda/msk-lambda-producer
+        run: task blr
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda/msk-lambda-producer.zip
+          overwrite: true
+
   terraform-plan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -33,8 +60,71 @@ jobs:
         with:
           terraform_version: "1.9.7"
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda
+      - name: Terraform Validate
+        id: validate
+        run: task tfv
       - name: Terraform Plan
-        run: task tfp
+        id: plan
+        run: task tfp -- -no-color
+      - uses: actions/github-script@v7
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
+            })
+
+            // 2. Prepare format of the comment
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            <details><summary>Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            // 3. If we have a comment, update it, otherwise create a new one
+            if (botComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              })
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            }
 
   terraform-apply:
     runs-on: ubuntu-latest
@@ -55,6 +145,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.7"
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}      
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda
       - name: Terraform Apply
         run: task tfa
