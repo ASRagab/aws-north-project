@@ -4,19 +4,56 @@ locals {
 
 module "apigateway" {
   source = "../../modules/apigateway"
+  api_definitions = [
+    {
+      path_part               = "msk"
+      http_method             = "POST"
+      integration_http_method = "POST"
+      status_codes = [
+        {
+          status_code       = "200"
+          selection_pattern = ""
+        },
+        {
+          status_code       = "400"
+          selection_pattern = "4\\d{2}"
+        },
+        {
+          status_code       = "500"
+          selection_pattern = "5\\d{2}"
+        }
+      ]
+      lambda_function_invoke_arn = module.lambda.msk_producer_lambda_invoke_arn
+      lambda_function_name       = module.lambda.msk_producer_lambda_name
+    }
+  ]
+  stage_name           = "dev"
+  user_pool_arn        = module.cognito.user_pool_arn
+  throttle_burst_limit = var.api_gateway_throttle_burst_limit
+  throttle_rate_limit  = var.api_gateway_throttle_rate_limit
+  quota_limit          = var.api_gateway_quota_limit
+  quota_period         = var.api_gateway_quota_period
+}
+
+module "cognito" {
+  source        = "../../modules/cognito"
+  pool_name     = var.cognito_pool_name
+  client_name   = var.cognito_client_name
+  username      = var.cognito_username
+  user_password = var.cognito_user_password
 }
 
 module "fargate" {
-  source                          = "../../modules/fargate"
-  environment                     = var.environment
-  aws_account_id                  = var.account_id
-  service_bus_bootstrap_brokers   = module.msk.msk_cluster_bootstrap_brokers
-  private_subnets                 = module.network.private_subnet_ids
-  security_groups                 = [module.network.msk_security_group_id, module.network.fargate_security_group_id]
-  missouri_services_image_tag     = var.missouri_services_image_tag
-  missouri_services_sizing        = var.missouri_services_sizing
-  kms_key_arn                     = module.kms.key_arn
-  region                          = var.region_name
+  source                        = "../../modules/fargate"
+  environment                   = var.environment
+  aws_account_id                = var.account_id
+  service_bus_bootstrap_brokers = module.msk.msk_cluster_bootstrap_brokers
+  private_subnets               = module.network.private_subnet_ids
+  security_groups               = [module.network.msk_security_group_id, module.network.fargate_security_group_id]
+  missouri_services_image_tag   = var.missouri_services_image_tag
+  missouri_services_sizing      = var.missouri_services_sizing
+  kms_key_arn                   = module.kms.key_arn
+  region                        = var.region_name
 }
 
 module "firehose" {

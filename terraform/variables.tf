@@ -9,22 +9,22 @@ variable "region_name" {
 }
 
 variable "domain_name" {
-  description = "The domain name"
+  description = "The domain name for the environment"
   type        = string
 }
 
 variable "environment" {
-  description = "The environment"
+  description = "The environment name (e.g., dev, staging, prod)"
   type        = string
 }
 
 variable "missouri_services_image_tag" {
-  description = "The missouri services docker image tag"
+  description = "The image tag for Missouri services"
   type        = string
 }
 
 variable "missouri_services_sizing" {
-  description = "The sizing for the missouri services in ECS"
+  description = "Sizing configurations for Missouri services"
   type = map(object({
     cpu    = string
     memory = string
@@ -37,42 +37,24 @@ variable "topic_name" {
 }
 
 variable "cognito_pool_name" {
-  description = "The name of the Cognito User Pool"
+  description = "The name of the Cognito user pool"
   type        = string
 }
 
 variable "cognito_client_name" {
-  description = "The name of the Cognito User Pool Client"
+  description = "The name of the Cognito client"
   type        = string
 }
 
 variable "cognito_username" {
-  description = "The username for the Cognito User"
+  description = "The username for the Cognito user"
   type        = string
 }
 
 variable "cognito_user_password" {
-  description = "The password for the Cognito User"
+  description = "The password for the Cognito user"
   type        = string
   sensitive   = true
-}
-
-variable "callback_urls" {
-  description = "The callback URLs for the Cognito User Pool Client"
-  type        = list(string)
-  default     = ["https://example.com"]
-}
-
-variable "logout_urls" {
-  description = "The logout URLs for the Cognito User Pool Client"
-  type        = list(string)
-  default     = ["https://missouri.com"]
-}
-
-variable "id_token_validity" {
-  description = "The validity of the ID token in hours"
-  type        = number
-  default     = 12
 }
 
 variable "api_gateway_throttle_burst_limit" {

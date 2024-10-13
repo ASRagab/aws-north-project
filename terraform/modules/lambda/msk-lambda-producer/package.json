@@ -7,8 +7,8 @@
     "build:ts": "esbuild src/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/index.js",
     "build:deps": "cp package.json package-lock.json dist && npm ci --omit=dev --prefix dist --quiet",
     "build": "npm run clean && npm run build:ts && npm run build:deps",
-    "package:local": "cd dist && zip -r ../../msk-lambda-producer.zip .",
-    "package:remote": "cd dist && zip -r ../../msk-lambda-producer.zip .",
+    "package:local": "cd dist && zip -qr ../../msk-lambda-producer.zip .",
+    "package:remote": "cd dist && zip -qr ../../msk-lambda-producer.zip .",
     "deploy:local": "npm run build && npm run package:local",
     "deploy:remote": "npm run build && npm run package:remote"
   },

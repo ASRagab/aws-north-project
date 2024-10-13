@@ -55,4 +55,13 @@ data "aws_iam_policy_document" "ecs_execution_policy" {
     ]
     resources = ["arn:aws:logs:*:*:*"]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "execute-api:Invoke",
+      "execute-api:ManageConnections"
+    ]
+    resources = ["arn:aws:execute-api:${var.region}:*:*"]
+  }
 }

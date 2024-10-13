@@ -1,89 +1,45 @@
-# API Gateway
-resource "aws_api_gateway_rest_api" "main" {
+resource "aws_api_gateway_account" "missouri_api" {
+  cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch_role.arn
+}
+
+resource "aws_api_gateway_rest_api" "missouri_api" {
   name        = "missouri-api"
-  description = "Missouri API Gateway with rate limiting and API keys"
-}
+  description = "API for Missouri Lambda Endpoints"
 
-# API Gateway Stage
-resource "aws_api_gateway_stage" "main" {
-  deployment_id = aws_api_gateway_deployment.main.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  stage_name    = "prod"
-}
-
-# API Gateway Deployment
-resource "aws_api_gateway_deployment" "main" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  depends_on = [aws_api_gateway_method.example, aws_api_gateway_integration.example]
-}
-
-# Example Method and Integration (you'll need to adjust these based on your specific needs)
-resource "aws_api_gateway_resource" "example" {
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "example"
-  rest_api_id = aws_api_gateway_rest_api.main.id
-}
-
-resource "aws_api_gateway_method" "example" {
-  authorization = "NONE"
-  http_method   = "GET"
-  resource_id   = aws_api_gateway_resource.example.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-}
-
-resource "aws_api_gateway_integration" "example" {
-  http_method = aws_api_gateway_method.example.http_method
-  resource_id = aws_api_gateway_resource.example.id
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  type        = "MOCK"
-}
-
-# Usage Plan for Rate Limiting
-resource "aws_api_gateway_usage_plan" "main" {
-  name = "main-usage-plan"
-
-  api_stages {
-    api_id = aws_api_gateway_rest_api.main.id
-    stage  = aws_api_gateway_stage.main.stage_name
-  }
-
-  quota_settings {
-    limit  = 1000000
-    offset = 0
-    period = "MONTH"
-  }
-
-  throttle_settings {
-    burst_limit = 10000
-    rate_limit  = 5000
+  endpoint_configuration {
+    types = ["PRIVATE"]
   }
 }
 
-# API Key
-resource "aws_api_gateway_api_key" "main" {
-  name = "main-api-key"
+# For Testing purposes
+resource "aws_api_gateway_authorizer" "cognito" {
+  name          = "cognito-authorizer"
+  rest_api_id   = aws_api_gateway_rest_api.missouri_api.id
+  type          = "COGNITO_USER_POOLS"
+  provider_arns = [var.user_pool_arn]
 }
 
-# Associate API Key with Usage Plan
-resource "aws_api_gateway_usage_plan_key" "main" {
-  key_id        = aws_api_gateway_api_key.main.id
-  key_type      = "API_KEY"
-  usage_plan_id = aws_api_gateway_usage_plan.main.id
-}
 
-# Enable API Key Required on Method
-resource "aws_api_gateway_method_settings" "example" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  stage_name  = aws_api_gateway_stage.main.stage_name
-  method_path = "*/*"
-
-  settings {
-    metrics_enabled = true
-    logging_level   = "INFO"
+module "gateway_resources" {
+  for_each = {
+    for index, definition in var.api_definitions : index => definition
   }
+  source                     = "./gateway_resources"
+  path_part                  = each.value.path_part
+  http_method                = each.value.http_method
+  integration_http_method    = each.value.integration_http_method
+  lambda_function_invoke_arn = each.value.lambda_function_invoke_arn
+  status_codes               = each.value.status_codes
+  rest_api_id                = aws_api_gateway_rest_api.missouri_api.id
+  parent_id                  = aws_api_gateway_rest_api.missouri_api.root_resource_id
+  stage_name                 = var.stage_name
+  source_arn                 = "${aws_api_gateway_rest_api.missouri_api.execution_arn}/*"
+  lambda_function_name       = each.value.lambda_function_name
+  cognito_authorizer_id      = aws_api_gateway_authorizer.cognito.id
+  throttle_burst_limit       = var.throttle_burst_limit
+  throttle_rate_limit        = var.throttle_rate_limit
+  quota_limit                = var.quota_limit
+  quota_period               = var.quota_period
+
+  depends_on = [aws_api_gateway_account.missouri_api]
 }
