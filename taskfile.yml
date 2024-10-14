@@ -1,6 +1,27 @@
 version: '3'
 
 tasks:
+  build-lambda-local:
+    aliases: [bll]
+    desc: Build Lambda function locally
+    dir: terraform/modules/lambda/msk-lambda-producer
+    cmds:
+      - npm run deploy:local
+
+  build-lambda-remote:
+    aliases: [blr]
+    desc: Build Lambda function remotely
+    dir: terraform/modules/lambda/msk-lambda-producer
+    cmds:
+      - npm run deploy:remote
+
+  check-lambda-zip:
+    aliases: [clz]
+    desc: Check if Lambda zip file exists and build if not found
+    dir: terraform/modules/lambda/msk-lambda-producer
+    cmds:
+      - test -f ../msk-lambda-producer.zip || (echo "Lambda zip file not found, building..." && task build-lambda-local)
+ 
   terraform-fmt:
     aliases:
       - tf-fmt
@@ -8,7 +29,7 @@ tasks:
     desc: Run Terraform fmt
     dir: terraform
     cmds:
-      - terraform fmt -recursive
+      - terraform fmt -recursive {{.CLI_ARGS}}
 
   terraform-validate:
     aliases:
@@ -16,8 +37,10 @@ tasks:
       - tfv
     desc: Run Terraform validate
     dir: terraform
+    deps: [check-lambda-zip]
     cmds:
-      - terraform validate
+      - terraform init {{.CLI_ARGS}}
+      - terraform validate {{.CLI_ARGS}}
 
   terraform-apply:
     aliases:
@@ -25,8 +48,10 @@ tasks:
       - tfa
     desc: Run Terraform apply
     dir: terraform
+    deps: [check-lambda-zip]
     cmds:
-      - terraform init && terraform apply -auto-approve
+      - terraform init {{.CLI_ARGS}} 
+      - terraform apply -auto-approve {{.CLI_ARGS}}
 
   terraform-destroy:
     aliases:
@@ -34,6 +59,7 @@ tasks:
       - tfd
     desc: Run Terraform destroy
     dir: terraform
+    deps: [check-lambda-zip]
     cmds:
       - terraform destroy -auto-approve
 
@@ -43,5 +69,24 @@ tasks:
       - tfp
     desc: Run Terraform plan
     dir: terraform
+    deps: [check-lambda-zip]
     cmds:
-      - terraform init && terraform plan
+      - terraform init
+      - terraform plan {{.CLI_ARGS}}
+  
+  terraform-clean:
+    aliases: [tf-clean]
+    desc: Clean up Terraform state
+    dir: terraform
+    cmds:
+      - rm -rf .terraform
+      - rm -f terraform.tfstate
+      - rm -f terraform.tfstate.backup
+      
+
+  diagram:
+    desc: Generate AWS Architecture Diagram
+    dir: diagrammer
+    cmds:
+      - rm -f architecture.png
+      - poetry run python3 diagram.py

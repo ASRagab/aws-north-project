@@ -13,14 +13,42 @@ permissions:
   contents: read
 
 jobs:
+  build-and-test-lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: "3.x"
+      - name: Install Dependencies
+        working-directory: terraform/modules/lambda/msk-lambda-producer
+        run: npm ci --quiet
+      - name: Build and Package Lambda
+        working-directory: terraform/modules/lambda/msk-lambda-producer
+        run: task blr
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda/msk-lambda-producer.zip
+          overwrite: true
+
   terraform-plan:
     runs-on: ubuntu-latest
+    needs: build-and-test-lambda
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4 
         with:
           role-to-assume: ${{ vars.ASSUME_ROLE_ARN_GITHUB_ACTIONS }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -33,17 +61,34 @@ jobs:
         with:
           terraform_version: "1.9.7"
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda
+      - name: Terraform Validate
+        id: validate
+        run: task tfv
       - name: Terraform Plan
-        run: task tfp
+        id: plan
+        run: task tfp -- -out=plan.tfplan
+      - name: Terraform Plan Comment
+        if: success()
+        uses: borchero/terraform-plan-comment@v2
+        with:
+          token: ${{ secrets.TERRAFORM_COMMENTER_TOKEN }}
+          planfile: plan.tfplan
+          working-directory: ${{ github.workspace }}/terraform
 
   terraform-apply:
     runs-on: ubuntu-latest
+    needs: terraform-plan
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4 
         with:
           role-to-assume: ${{ vars.ASSUME_ROLE_ARN_GITHUB_ACTIONS }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -55,6 +100,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.7"
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}      
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msk-lambda-producer
+          path: ${{ github.workspace }}/terraform/modules/lambda
       - name: Terraform Apply
         run: task tfa

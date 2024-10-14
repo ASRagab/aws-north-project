@@ -1,15 +1,15 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "us-east-2"
 }
 
 terraform {
-  cloud { 
-    organization = "north-demo" 
+  cloud {
+    organization = "north-demo"
 
-    workspaces { 
-      name = "missouri" 
-    } 
-  } 
+    workspaces {
+      name = "missouri"
+    }
+  }
 
   required_providers {
     aws = {
