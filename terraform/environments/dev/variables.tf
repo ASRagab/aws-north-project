@@ -18,19 +18,6 @@ variable "environment" {
   type        = string
 }
 
-variable "missouri_services_image_tag" {
-  description = "The missouri services docker image tag"
-  type        = string
-}
-
-variable "missouri_services_sizing" {
-  description = "The sizing for the missouri services in ECS"
-  type = map(object({
-    cpu    = string
-    memory = string
-  }))
-}
-
 variable "topic_name" {
   description = "The name of the MSK topic"
   type        = string
@@ -93,4 +80,29 @@ variable "api_gateway_quota_limit" {
 variable "api_gateway_quota_period" {
   description = "The API Gateway quota period"
   type        = string
+}
+
+variable "service_definitions" {
+  description = "missouri service fargate definitions"
+  type = list(object({
+    service_name  = string
+    image_tag     = string
+    sizing        = string
+    desired_count = number
+  }))
+}
+
+variable "database_definitions" {
+  description = "The definitions for the databases"
+  type = list(object({
+    db_master_username = string
+    instance_count     = number
+    cluster_identifier = string
+    database_name      = string
+  }))
+}
+
+variable "availability_zones" {
+  description = "The availability zones for the database"
+  type        = list(string)
 }

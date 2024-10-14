@@ -43,15 +43,23 @@ module "cognito" {
   user_password = var.cognito_user_password
 }
 
+module "db" {
+  source               = "../../modules/db"
+  database_definitions = var.database_definitions
+  vpc_id               = module.network.vpc_id
+  vpc_cidr_block       = module.network.vpc_ipv4_cidr
+  private_subnet_ids   = module.network.private_subnet_ids
+  availability_zones   = var.availability_zones
+}
+
 module "fargate" {
   source                        = "../../modules/fargate"
+  service_definitions           = var.service_definitions
   environment                   = var.environment
   aws_account_id                = var.account_id
   service_bus_bootstrap_brokers = module.msk.msk_cluster_bootstrap_brokers
   private_subnets               = module.network.private_subnet_ids
   security_groups               = [module.network.msk_security_group_id, module.network.fargate_security_group_id]
-  missouri_services_image_tag   = var.missouri_services_image_tag
-  missouri_services_sizing      = var.missouri_services_sizing
   kms_key_arn                   = module.kms.key_arn
   region                        = var.region_name
 }

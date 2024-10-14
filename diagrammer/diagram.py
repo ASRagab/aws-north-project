@@ -1,32 +1,54 @@
-from diagrams import Diagram, Cluster, Edge
-from diagrams.aws.compute import EC2, Lambda
-from diagrams.aws.database import RDS
-from diagrams.aws.network import ELB, VPC, APIGateway, InternetGateway
+from diagrams import Diagram, Cluster
+from diagrams.aws.compute import ECS, Lambda, AutoScaling
+from diagrams.aws.database import Aurora
+from diagrams.aws.network import ALB, VPC, APIGateway, InternetGateway
+from diagrams.aws.security import Cognito
 from diagrams.aws.analytics import ManagedStreamingForKafka as MSK
-from diagrams.aws.integration import SQS
+from diagrams.aws.analytics import KinesisDataStreams
 from diagrams.aws.storage import S3
 
+def create_aws_diagram():
+    with Diagram("Missouri Commerce AWS Architecture", show=False, filename="architecture"):
+        with Cluster("US-East-2"):
+            cognito = Cognito("Cognito User Pool")
+            s3 = S3("MSK Events and Error Logs")
+            igw = InternetGateway("Internet Gateway")
+            api = APIGateway("Missouri API Gateway")
+            firehose = KinesisDataStreams("Data Delivery Stream")
+            with Cluster("VPC"):
+              vpc = VPC("VPC")
 
-with Diagram("Missouri Commerce AWS Architecture", outformat="png"):
-    vpc = VPC("VPC")
+              with Cluster("Private Subnets"):
+                  db = Aurora("Aurora Serverless v2")
+                  msk = MSK("MSK Cluster")
+                  lambdas = [
+                      Lambda("Orders Notification Service"),
+                      Lambda("Shipping Notification Service")
+                  ]
+                  with Cluster("Autoscaling Groups"):
+                    autoscaling_group = AutoScaling("Service Autoscaling Group")
+                    fargate = [
+                        ECS("User Service"),
+                        ECS("Inventory Service"),
+                        ECS("Payments Service"),
+                        ECS("Orders Service"),
+                      ]
 
-    ig = InternetGateway("Internet Gateway")
-    alb = ELB("Application Load Balancer")
-    
-    with Cluster("Public Subnet"):
-        web = EC2("Web Server")
-    
-    with Cluster("Private Subnet"):
-        db = RDS("Database")
-    
-    api = APIGateway("API Gateway")
+              with Cluster("Public Subnets"):
+                  alb = ALB("Application Load Balancer")
 
-    lambda_function = Lambda("Event Publisher")
-    msk = MSK("Service Bus")
 
-    api << lambda_function << msk
 
-    api >> alb >> web
-    web >> db
-    
-    ig >> vpc
+
+            # Connections
+        igw >> vpc
+        api >> lambdas >> msk
+        msk >> firehose >> s3
+        autoscaling_group >> fargate
+        alb >> fargate
+        fargate >> db
+        msk - fargate
+        cognito >> api
+
+if __name__ == "__main__":
+    create_aws_diagram()

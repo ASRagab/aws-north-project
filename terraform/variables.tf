@@ -1,13 +1,3 @@
-variable "account_id" {
-  description = "The AWS account ID"
-  type        = string
-}
-
-variable "region_name" {
-  description = "The AWS region name"
-  type        = string
-}
-
 variable "domain_name" {
   description = "The domain name for the environment"
   type        = string
@@ -18,16 +8,13 @@ variable "environment" {
   type        = string
 }
 
-variable "missouri_services_image_tag" {
-  description = "The image tag for Missouri services"
-  type        = string
-}
-
-variable "missouri_services_sizing" {
-  description = "Sizing configurations for Missouri services"
-  type = map(object({
-    cpu    = string
-    memory = string
+variable "service_definitions" {
+  description = "missouri service fargate definitions"
+  type = list(object({
+    service_name  = string
+    image_tag     = string
+    sizing        = string
+    desired_count = number
   }))
 }
 
@@ -75,4 +62,14 @@ variable "api_gateway_quota_limit" {
 variable "api_gateway_quota_period" {
   description = "The API Gateway quota period"
   type        = string
+}
+
+variable "database_definitions" {
+  description = "The definitions for the databases"
+  type = list(object({
+    db_master_username = string
+    instance_count     = number
+    cluster_identifier = string
+    database_name      = string
+  }))
 }

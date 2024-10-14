@@ -73,3 +73,20 @@ tasks:
     cmds:
       - terraform init
       - terraform plan {{.CLI_ARGS}}
+  
+  terraform-clean:
+    aliases: [tf-clean]
+    desc: Clean up Terraform state
+    dir: terraform
+    cmds:
+      - rm -rf .terraform
+      - rm -f terraform.tfstate
+      - rm -f terraform.tfstate.backup
+      
+
+  diagram:
+    desc: Generate AWS Architecture Diagram
+    dir: diagrammer
+    cmds:
+      - rm -f architecture.png
+      - poetry run python3 diagram.py
